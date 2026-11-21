@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: keppetipola-vegetable-price-forecast
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: python dashboard.py
+    healthCheckPath: /

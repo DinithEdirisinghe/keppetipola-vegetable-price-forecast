@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keppetipola market forecast</title>
+<style>
+*{box-sizing:border-box}body{margin:0;color:#233c30;background:#f5f2e9;font:16px/1.45 "Segoe UI",sans-serif}header{background:#174737;color:#fff;padding:25px max(5%,calc((100vw - 1120px)/2)) 30px}header small{color:#d2dfbf;letter-spacing:.1em}h1{font:clamp(34px,4.6vw,62px)/1.05 Georgia,serif;margin:12px 0}p{margin:6px 0 16px}main,footer{width:min(1120px,92%);margin:22px auto}section{background:#fffcf5;padding:20px 24px;border:1px solid #d6d9c5;border-radius:10px;margin-bottom:16px}h2{font:28px Georgia,serif;margin:0 0 12px}label,small{font-size:.86rem}select,button{font:inherit;padding:8px 12px;border-radius:5px;border:1px solid #a9b6a9}select{margin:0 16px 6px 6px}button{background:#215341;color:white;cursor:pointer}.cards,.lower{display:grid;gap:14px}.cards{grid-template-columns:repeat(3,1fr);margin:16px 0}.card{border-left:4px solid #bf723b;padding:9px 14px;background:#f3f2e7}.card b{display:block;font-size:1.6rem}.lower{grid-template-columns:1fr 1fr}output{margin-left:12px;font-weight:bold}.bar{height:7px;background:#36775a;border-radius:3px}.line{display:flex;justify-content:space-between;margin:7px 0 2px}table{border-collapse:collapse;width:100%}td,th{text-align:right;padding:6px;border-bottom:1px solid #d9ddce}th:first-child,td:first-child{text-align:left}footer{font-size:.83rem}a{color:#20573e}@media(max-width:720px){.lower,.cards{grid-template-columns:1fr}}
+</style>
+<header><small>CM4371 · ENSEMBLE LEARNING</small><h1>Next week at Keppetipola</h1><p>One-week forecasts of observed wholesale vegetable prices · Sri Lankan rupees per kilogram</p></header>
+<main><p id="status">Loading forecasts…</p><div id="app" hidden><section><h2>Explore a forecast</h2><label>Vegetable <select id="crop"></select></label><label>Week starting <select id="week"></select></label><p id="history"></p><div class="cards" id="cards"></div><button id="show">Reveal observed price</button><output id="actual" aria-live="polite"></output></section>
+<div class="lower"><section><h2>Which forecast was closest?</h2><p id="test"></p><div id="bars"></div></section><section><h2>When prices move</h2><p>Average error by size of the observed weekly change (Rs/kg).</p><table><thead><tr><th>Change</th><th>Cases</th><th>Last week</th><th>Stack</th></tr></thead><tbody id="groups"></tbody></table><p id="explain"></p></section></div></div></main>
+<footer>Source · <a href="https://zenodo.org/records/24214018">Keppetipola Wholesale Vegetable Prices Dataset</a> · ChatGPT generated the dashboard code.</footer>
+<script>
+const el=id=>document.getElementById(id), fmt=x=>x.toFixed(2);
+function render(data){
+ const {rows,scores,groups,weight}=data, methods=['Random Forest','Gradient Boosting','Stacking'];
+ let choices,record;
+ function pickWeek(){
+  record=choices.find(r=>r.week===el('week').value);
+  el('history').textContent='Previous three weekly means, oldest first: Rs. '+[record.lag3,record.lag2,record.lag1].map(fmt).join(' → ');
+  el('cards').replaceChildren();
+  for(const m of methods){const box=document.createElement('div');box.className='card';box.textContent=m;const value=document.createElement('b');value.textContent='Rs. '+fmt(record[m]);box.append(value);el('cards').append(box)}
+  el('actual').textContent='';el('show').textContent='Reveal observed price';
+ }
+ function pickCrop(){
+  choices=rows.filter(r=>r.Vegetable===el('crop').value);
+  el('week').replaceChildren(...choices.map(r=>new Option(r.week,r.week)));pickWeek();
+ }
+ el('crop').replaceChildren(...[...new Set(rows.map(r=>r.Vegetable))].sort().map(k=>new Option(k,k)));
+ el('crop').onchange=pickCrop;el('week').onchange=pickWeek;pickCrop();
+ el('show').onclick=()=>{const visible=Boolean(el('actual').textContent);el('actual').textContent=visible?'':'Rs. '+fmt(record.actual)+' / kg · '+record.observed_days+' observed days';el('show').textContent=visible?'Reveal observed price':'Hide observed price'};
+ el('test').textContent='Mean absolute error across '+rows.length+' held-out crop-weeks. Lower is better.';
+ for(const [m,s] of Object.entries(scores)){const line=document.createElement('div');line.className='line';line.textContent=m;const price=document.createElement('b');price.textContent='Rs. '+fmt(s);line.append(price);const bar=document.createElement('div');bar.className='bar';bar.style.width=(100*s/Math.max(...Object.values(scores)))+'%';el('bars').append(line,bar)}
+ for(const row of groups){const tr=el('groups').insertRow();for(const v of [row.movement,row.Examples,fmt(row['Last week']),fmt(row.Stacking)])tr.insertCell().textContent=v}
+ el('explain').textContent='The stack learned weights of '+Math.round(weight*100)+'% for Random Forest and '+Math.round(100-weight*100)+'% for Gradient Boosting from earlier validation weeks.';
+ el('status').hidden=true;el('app').hidden=false;
+}
+fetch('/results').then(r=>r.json()).then(render).catch(()=>el('status').textContent='Unable to load forecasts. Refresh to retry.');
+</script></html>
